@@ -3,13 +3,19 @@ import TaskService from '../api/TaskService';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Redirect } from 'react-router-dom';
+import AuthService from '../api/AuthService';
+import Spinner from './Spinner';
+import  Alert  from './Alert';
 
 class TaskListTable extends Component {
+
     constructor(props) {
         super(props);
         this.state = {
             tasks: [],
-            editId: 0
+            editId: 0,
+            loading: false,
+            alert: null
         }
         this.onDeleteHandler = this.onDeleteHandler.bind(this);
         this.onStatusChangeHandler = this.onStatusChangeHandler.bind(this);
@@ -17,18 +23,28 @@ class TaskListTable extends Component {
     }
 
     render() {
+
+        if(!AuthService.isAuthenticated()) {
+            return <Redirect to="/login" />
+        }
+
         if (this.state.editId > 0) {
             return <Redirect to={`/form/${this.state.editId}`} />
         }
+
         return (
             <>
+                <h1>Lista de Tarefas</h1>
+                { this.state.alert != null ? <Alert message={this.state.alert}/> : ""}
+                { this.state.loading ? <Spinner /> :
                 <table className="table table-striped">
                     <TableHeader />
-                    {this.state.tasks.length <= 0 ? 
+                    {this.state.tasks.length > 0 ? 
                         <EmptyTableBody />
                     :
                         <TableBody tasks={this.state.tasks} onDelete={this.onDeleteHandler} onEdit={this.onEditHandler} onStatusChange={this.onStatusChangeHandler}/>}
                 </table>
+                }
                 <ToastContainer autoClose={1500} />
             </>    
         );
@@ -39,8 +55,19 @@ class TaskListTable extends Component {
     }
 
     listTasks() {
-        const tasks = TaskService.list();
-        this.setState({ tasks: tasks });
+        if (!AuthService.isAuthenticated()) {
+            return;
+        }
+        this.setState({ loading: true });
+        TaskService.list(
+            tasks => this.setState({ tasks: tasks, loading: false }),
+            error => this.setErrorState(error)
+        );
+        
+    }
+
+    setErrorState(error) {
+        this.setState({ alert: `Erro na requisição: ${error.message}`, loading: false });
     }
 
     onDeleteHandler(id) {
