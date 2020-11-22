@@ -6,6 +6,7 @@ import { Redirect } from 'react-router-dom';
 import AuthService from '../api/AuthService';
 import Spinner from './Spinner';
 import  Alert  from './Alert';
+import Moment from 'react-moment';
 
 class TaskListTable extends Component {
 
@@ -39,7 +40,7 @@ class TaskListTable extends Component {
                 { this.state.loading ? <Spinner /> :
                 <table className="table table-striped">
                     <TableHeader />
-                    {this.state.tasks.length > 0 ? 
+                    {this.state.tasks.length <= 0 ? 
                         <EmptyTableBody />
                     :
                         <TableBody tasks={this.state.tasks} onDelete={this.onDeleteHandler} onEdit={this.onEditHandler} onStatusChange={this.onStatusChangeHandler}/>}
@@ -63,7 +64,6 @@ class TaskListTable extends Component {
             tasks => this.setState({ tasks: tasks, loading: false }),
             error => this.setErrorState(error)
         );
-        
     }
 
     setErrorState(error) {
@@ -72,16 +72,18 @@ class TaskListTable extends Component {
 
     onDeleteHandler(id) {
         if (window.confirm("Deseja excluir está tarefa?")) {
-            TaskService.delete(id);
-            this.listTasks();
-            toast.success("Tarefa excluída!", { position: toast.POSITION.BOTTOM_LEFT });
+            TaskService.delete(id, () => {
+                this.listTasks();
+                toast.success("Tarefa excluída!", { position: toast.POSITION.BOTTOM_LEFT });
+            }, error => this.setErrorState(error));
         }
     }
 
     onStatusChangeHandler(task) {
         task.done = !task.done;
-        TaskService.save(task);
-        this.listTasks();
+        TaskService.save(task, () => { 
+            const tasks = this.state.tasks.map(t => t.id !== task.id ? t : task ); this.setState( { tasks : tasks }) }
+            , error => this.setErrorState(error));
     }
 
     onEditHandler(id) {
@@ -109,7 +111,7 @@ const TableBody = (props) => {
                 <tr key={task.id}>
                     <td><input type="checkbox" checked={task.done} onChange={() => props.onStatusChange(task)}/></td>
                     <td>{task.done ? <s>{task.description}</s> : task.description }</td>
-                    <td>{task.done ? <s>{task.whenToDo}</s> : task.whenToDo }</td>
+                    <td>{task.done ? <s><Moment format="DD/MM/YYYY"> {task.whenToDo}</Moment></s> : <Moment format="DD/MM/YYYY">{task.whenToDo}</Moment> }</td>
                     <td>
                         <input type="button" className="btn btn-warning" value="Editar" onClick={() => props.onEdit(task.id)}/>
                         &nbsp;

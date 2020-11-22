@@ -49,4 +49,6 @@ public class BluetasksBackendApplication implements RepositoryRestConfigurer {
 		logger.info("Configure validator... OK");
 	}
 	
+	
+	
 }

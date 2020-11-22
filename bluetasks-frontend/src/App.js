@@ -7,20 +7,29 @@ import TaskListTable from './components/TaskListTable';
 
 
 class App extends Component {
+  
+  // eslint-disable-next-line no-useless-constructor
   constructor(props) {
     super(props)
+
+    this.onRefreshHandler = this.onRefreshHandler.bind(this);
   }
 
+  onRefreshHandler() {
+    this.forceUpdate();
+  }
+
+  on
   render() {
     return (
       <BrowserRouter>
         <div className="App">
-          <NavBar />
+          <NavBar onLinkClick={ this.onRefreshHandler }/>
           <div className="container" style={{ marginTop: 20}}>
           <Switch>
             <Route exact path="/form" component={TaskForm}/>
             <Route exact path="/form/:id" component={TaskForm}/>
-            <Route exact path="/login" component={Login}/>
+            <Route exact path="/login" render={() => <Login onLoginSucess={this.onRefreshHandler} />}/>
             <Route path="/" component={TaskListTable}/>
           </Switch>
           </div>
