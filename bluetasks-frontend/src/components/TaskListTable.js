@@ -1,134 +1,95 @@
-import React, { Component } from 'react';
-import TaskService from '../api/TaskService';
-import { ToastContainer, toast } from 'react-toastify';
+import React, { useContext, useEffect, useState } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Redirect } from 'react-router-dom';
-import AuthService from '../api/AuthService';
 import Spinner from './Spinner';
-import  Alert  from './Alert';
+import Alert from './Alert';
 import Moment from 'react-moment';
+import { useTask } from '../hooks/useTask';
+import { AuthContext } from '../hooks/useAuth';
 
-class TaskListTable extends Component {
+export const TaskListTable = () => {
+    const tasks = useTask();
+    const auth = useContext(AuthContext);
+    const [ editId, setEditId ] = useState(0);
 
-    constructor(props) {
-        super(props);
-        this.state = {
-            tasks: [],
-            editId: 0,
-            loading: false,
-            alert: null
+    useEffect(() => {
+        if (auth.credentials.username !== null) {
+            tasks.list();
         }
-        this.onDeleteHandler = this.onDeleteHandler.bind(this);
-        this.onStatusChangeHandler = this.onStatusChangeHandler.bind(this);
-        this.onEditHandler = this.onEditHandler.bind(this);
-    }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [auth.credentials]);
 
-    render() {
-
-        if(!AuthService.isAuthenticated()) {
-            return <Redirect to="/login" />
-        }
-
-        if (this.state.editId > 0) {
-            return <Redirect to={`/form/${this.state.editId}`} />
-        }
-
-        return (
-            <>
-                <h1>Lista de Tarefas</h1>
-                { this.state.alert != null ? <Alert message={this.state.alert}/> : ""}
-                { this.state.loading ? <Spinner /> :
-                <table className="table table-striped">
-                    <TableHeader />
-                    {this.state.tasks.length <= 0 ? 
-                        <EmptyTableBody />
-                    :
-                        <TableBody tasks={this.state.tasks} onDelete={this.onDeleteHandler} onEdit={this.onEditHandler} onStatusChange={this.onStatusChangeHandler}/>}
-                </table>
-                }
-                <ToastContainer autoClose={1500} />
-            </>    
-        );
-    }
-
-    componentDidMount() {
-        this.listTasks();
-    }
-
-    listTasks() {
-        if (!AuthService.isAuthenticated()) {
-            return;
-        }
-        this.setState({ loading: true });
-        TaskService.list(
-            tasks => this.setState({ tasks: tasks, loading: false }),
-            error => this.setErrorState(error)
-        );
-    }
-
-    setErrorState(error) {
-        this.setState({ alert: `Erro na requisição: ${error.message}`, loading: false });
-    }
-
-    onDeleteHandler(id) {
+    const onDeleteHandler = (taskToDelete) => {
         if (window.confirm("Deseja excluir está tarefa?")) {
-            TaskService.delete(id, () => {
-                this.listTasks();
-                toast.success("Tarefa excluída!", { position: toast.POSITION.BOTTOM_LEFT });
-            }, error => this.setErrorState(error));
+            tasks.remove(taskToDelete);
         }
+    };
+
+    const onStatusChangeHandler = (taskToUpdate) => {
+        taskToUpdate.done = !taskToUpdate.done;
+        tasks.save(taskToUpdate, true);
+    };
+
+    const onEditHandler = (taskToEdit) => {
+        setEditId(taskToEdit.id);
+    };
+
+    useEffect(() => {
+        if (tasks.taskRemoved !== null) {
+            toast.success(`Tarefa ${tasks.taskRemoved.id} excluída`, { position: toast.POSITION.BOTTOM_LEFT });
+            tasks.clearTaskRemoved();
+        }
+
+        if (tasks.taskUpdated !== null) {
+            toast.success(`Tarefa ${tasks.taskUpdated.id} foi marcada como ${!tasks.taskUpdated.done ? "não" : ""} concluída!`, { position: toast.POSITION.BOTTOM_LEFT });
+            tasks.clearTaskUpdated();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tasks.taskRemoved, tasks.taskUpdated]);
+
+    if (!auth.isAuthenticated()) {
+        return <Redirect to="/login" />;
     }
 
-    onStatusChangeHandler(task) {
-        task.done = !task.done;
-        TaskService.save(task, () => { 
-            const tasks = this.state.tasks.map(t => t.id !== task.id ? t : task ); this.setState( { tasks : tasks }) }
-            , error => this.setErrorState(error));
+    if (editId > 0) {
+        return <Redirect to={`/form/${editId}`} />
     }
 
-    onEditHandler(id) {
-        this.setState({editId: id});
-    }
-}
-
-const TableHeader = () => {
     return (
-        <thead className="thead-dark">
-            <tr>
-                <th scope="col">Status</th>
-                <th scope="col">Descrição</th>
-                <th scope="col">Data</th>
-                <th scope="col">Ações</th>
-            </tr>
-        </thead>
-    )
-}
+        <>
+            <h1>Lista de Tarefas</h1>
+            { tasks.error && <Alert message={tasks.error} />}
+            { tasks.processing ? <Spinner /> :
+                <table className="table table-striped">
+                    <thead className="thead-dark">
+                        <tr>
+                            <th scope="col">Status</th>
+                            <th scope="col">Descrição</th>
+                            <th scope="col">Data</th>
+                            <th scope="col">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tasks.taskList.length === 0 ? <tr><td colSpan="4">Sem tarefas cadastradas no momento!</td></tr> :
+                            (
+                                tasks.taskList.map(task =>
+                                    <tr key={task.id}>
+                                        <td><input type="checkbox" checked={task.done} onChange={() => onStatusChangeHandler(task)} /></td>
+                                        <td>{task.done ? <s>{task.description}</s> : task.description}</td>
+                                        <td>{task.done ? <s><Moment format="DD/MM/YYYY">{task.whenToDo}</Moment></s> : <Moment format="DD/MM/YYYY">{task.whenToDo}</Moment>}</td>
+                                        <td>
+                                            <input type="button" className="btn btn-warning" value="Editar" onClick={() => onEditHandler(task)} />
+                                        &nbsp;
+                                        <input type="button" className="btn btn-danger" value="Excluir" onClick={() => onDeleteHandler(task)} />
+                                        </td>
+                                    </tr>
+                                ))}
+                    </tbody>
+                </table>
+            }
+            <ToastContainer autoClose={1500} />
+        </>
+    );
 
-const TableBody = (props) => {
-    return (
-        <tbody>
-            {props.tasks.map(task => 
-                <tr key={task.id}>
-                    <td><input type="checkbox" checked={task.done} onChange={() => props.onStatusChange(task)}/></td>
-                    <td>{task.done ? <s>{task.description}</s> : task.description }</td>
-                    <td>{task.done ? <s><Moment format="DD/MM/YYYY"> {task.whenToDo}</Moment></s> : <Moment format="DD/MM/YYYY">{task.whenToDo}</Moment> }</td>
-                    <td>
-                        <input type="button" className="btn btn-warning" value="Editar" onClick={() => props.onEdit(task.id)}/>
-                        &nbsp;
-                        <input type="button" className="btn btn-danger" value="Excluir" onClick={() => props.onDelete(task.id)}/>
-                    </td>
-                </tr>    
-            )}
-        </tbody>
-    )
-}
-
-const EmptyTableBody = (prop) => {
-    return  (<tbody>
-                <tr>
-                    <td colSpan="4">Sem tarefas cadastradas no momento!</td>
-                </tr>
-            </tbody>);
-}
-
-export default TaskListTable;
+};

@@ -1,42 +1,34 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
-import Login from './components/Login';
-import NavBar from './components/NavBar';
-import TaskForm from './components/TaskForm';
-import TaskListTable from './components/TaskListTable';
+import { Login } from './components/Login';
+import { NavBar } from './components/NavBar';
+import { TaskForm } from './components/TaskForm';
+import { TaskListTable } from './components/TaskListTable';
+import { AuthContext, useAuth } from './hooks/useAuth';
 
 
-class App extends Component {
-  
-  // eslint-disable-next-line no-useless-constructor
-  constructor(props) {
-    super(props)
+const App = (props) => {
 
-    this.onRefreshHandler = this.onRefreshHandler.bind(this);
-  }
+  const auth = useAuth();
 
-  onRefreshHandler() {
-    this.forceUpdate();
-  }
-
-  on
-  render() {
     return (
-      <BrowserRouter>
-        <div className="App">
-          <NavBar onLinkClick={ this.onRefreshHandler }/>
-          <div className="container" style={{ marginTop: 20}}>
-          <Switch>
-            <Route exact path="/form" component={TaskForm}/>
-            <Route exact path="/form/:id" component={TaskForm}/>
-            <Route exact path="/login" render={() => <Login onLoginSucess={this.onRefreshHandler} />}/>
-            <Route path="/" component={TaskListTable}/>
-          </Switch>
+      <AuthContext.Provider value={auth}>
+        <BrowserRouter>
+          <div className="App">
+            <NavBar />
+            <div className="container" style={{ marginTop: 20}}>
+            <Switch>
+              <Route exact path="/form" component={TaskForm}/>
+              <Route exact path="/form/:id" component={TaskForm}/>
+              <Route exact path="/login" component={Login}/>
+              <Route path="/" component={TaskListTable}/>
+            </Switch>
+            </div>
           </div>
-        </div>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AuthContext.Provider>
     );
-  }
+
 }
 
 export default App;
